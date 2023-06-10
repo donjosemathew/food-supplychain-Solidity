@@ -25,7 +25,7 @@ contract StepNode{
     bool public isFirstStep;
     bool public isProcessedStep=false;
     address public next=address(0);
-    address public prev;
+    address public prev=address(0);
     address public owner;
     uint256 arrayIndex;
     string  public step;
@@ -38,7 +38,10 @@ contract StepNode{
     }
     function updateNext(address nextAddress) public {
         next=nextAddress;
-        isProcessedStep=true;
+       
+    }
+    function markprocessed()public{
+         isProcessedStep=true;
     }
     function store(bool lastStep,bool firstStep,address prevAd,uint256 index,string memory stepData,string memory locationData,string memory descriptionData) public {
         isLastStep=lastStep;
@@ -55,6 +58,9 @@ contract StepNode{
     function isFirstStepNode()public  view returns (bool){
         return isFirstStep;
     }
+    function getPrevAddress()public  view returns (address){
+        return prev;
+    }
     function isProcessed() public  view returns (bool){
          return isProcessedStep;
     }
@@ -64,8 +70,14 @@ contract StepNode{
     function purchaseProduct() public {
         isLastStep=true;
     }
-    function nodeData() public view returns(bool,bool,address,address,address,string memory,string memory,string memory,uint){
-        return (isLastStep,isFirstStep,next,prev,owner,step,location,description,time);
+    function isValidNode() public view returns (bool){
+        if(!isFirstStep && address(0)==next) {
+            return false;
+        }
+        return  true;
+    }
+    function nodeData() public view returns(bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
+        return (isLastStep,isFirstStep,isProcessedStep,next,prev,owner,step,location,description,time);
     }
 
 }
@@ -81,8 +93,8 @@ contract SupplyChain{
         try user.getUserData(){
                 StepNode firstStep=new StepNode();
                 stepNodeArray.push(firstStep);
-            uint256 len=getArraylength();
-            firstStep.store(false, true, address(0),len,stepData,locationData,descriptionData);
+                uint256 len=getArraylength();
+                firstStep.store(false, true, address(0),len,stepData,locationData,descriptionData);
         }catch Error(string memory reason){
             emit emitError(reason,"Not Logged in");
         }
@@ -96,31 +108,32 @@ contract SupplyChain{
         User user=userMapping[msg.sender];
        
         try user.getUserData(){
+                try node.isLastStepNode(){
+                        if(node.isLastStepNode()){
+                            revert("Already Purchased");
+                        }else if(node.isProcessed()){
+                            revert("Already Processed");
+                        }else if(!node.isValidNode()){
+                            revert("Invalid node");
+                        }else{
+                            StepNode newStep=new StepNode();
+                            uint256 len=getArraylength();
+                            newStep.store(false, false, prevAddress,len,stepData,locationData,descriptionData);
+                            stepNodeArray.push(newStep);
+                            node.markprocessed();
+                        }
+                        
+                        
+                    }catch Error(string memory reason) {
+                        // catch failing revert() and require()
+                        emit emitError(reason,"Node doesn't exist");
+                    }
+             
             
         }catch Error(string memory reason){
             emit emitError(reason,"Not loggedIn");
         }
-        if(prevAddress==address(0)){
-             revert("Invalid Parameters");
-        }   
-        try node.isLastStepNode(){
-            if(node.isLastStepNode()){
-                revert("Already Purchased");
-            }else if(node.isLastStepNode()){
-                revert("Already Purchased");
-            }else if(node.isProcessed() || !node.isFirstStep()){
-                revert("Already Processed");
-            }else{
-                StepNode newStep=new StepNode();
-                uint256 len=getArraylength();
-                newStep.store(false, false, prevAddress,len,stepData,locationData,descriptionData);
-                stepNodeArray.push(newStep);
-                
-            }
-        }catch Error(string memory reason) {
-            // catch failing revert() and require()
-            emit emitError(reason,"Node doesn't exist");
-        }
+        
        
         
     }
@@ -142,15 +155,11 @@ contract SupplyChain{
         StepNode node=StepNode(indexAddress);
         return node;
     }
-    struct Data{
-            bool isLastStep;
-            bool isFirstStep;
-            address next;
-            address prev;
-            address owner;
-            uint256 arrayIndex;
+    function getPrevData(address prevAddress)public view   returns (bool){
+        StepNode node=StepNode(prevAddress);
+        return address(0)==node.getPrevAddress();
     }
-    function getStepDetails(address indexAddress)public view returns (bool,bool,address,address,address,string memory,string memory,string memory,uint){
+    function getStepDetails(address indexAddress)public view returns (bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
         StepNode node=StepNode(indexAddress);
         return  node.nodeData();
     }
