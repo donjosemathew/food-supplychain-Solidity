@@ -142,11 +142,12 @@ previous node Y is valid or not.We verify it by
 checking if next address of X is equal to address of Y.
 (If Y is a firstNode no need to check);
 ////////////////////////////////////////////*/
-    function isValidNode(address nodeAddress) public view returns (bool){
+    function isValidNode() public view returns (bool){
         
         if(!isFirstStep) {
             StepNode previousStep=StepNode(prev);
             address previous=previousStep.getNextAddress();
+            address nodeAddress=address(this);
             if(previous==nodeAddress){
                 return true;
             }
@@ -163,12 +164,23 @@ nodeData() - Returns all data related to a step/stage
 
 }
 
+
+/*///////////////////////////////////////////
+//////Contract 1 - SuplyChain/////////////////////////////////
+Act as the parent Contract.Holds all contracts related to the
+chain
+
+////////////////////////////////////////////*/
 contract SupplyChain{
-    User[] public userlist;
-    StepNode[] public stepNodeArray;
+    User[] public userlist;//Holds all User Contracts
+    StepNode[] public stepNodeArray;//Holds all step contracts
     mapping (address=>uint32[]) public addressToArrayindex;
     mapping (address=>User)public userMapping;
     event emitError(string reason,string text);
+/*///////////////////////////////////////////
+createAFirstStep() - Create first step of a product
+Only logged in users can create a step
+////////////////////////////////////////////*/
     function createAFirstStep(string memory stepData,string memory locationData,string memory descriptionData) public{
         User user=userMapping[msg.sender];
         try user.getUserData(){
@@ -182,7 +194,9 @@ contract SupplyChain{
         
         
     }
-
+/*///////////////////////////////////////////
+createAStep() - Returns all data related to a step/stage
+////////////////////////////////////////////*/
     function createAStep(address prevAddress,string memory stepData,string memory locationData,string memory descriptionData) public{
         //prevNode Status
         StepNode node=StepNode(prevAddress);
@@ -194,7 +208,7 @@ contract SupplyChain{
                             revert("Already Purchased");
                         }else if(node.isProcessed()){
                             revert("Already Processed");
-                        }else if(!node.isValidNode(prevAddress)){
+                        }else if(!node.isValidNode()){
                             revert("Invalid node");
                         }else{
                             StepNode newStep=new StepNode();
