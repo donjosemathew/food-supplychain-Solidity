@@ -2,25 +2,47 @@
 pragma solidity ^0.8.7;
 
 
+ /*///////////////////////////////////////////
+//////Contract 3 - User/////////////////////////////////
+Holds Details related to Users
+////////////////////////////////////////////*/
 contract User{
+    ///Contract Used to store details of Users
     string public name;
     string public location;
     string public stage;
+    //array to hold all smart contracts deployed by a specific User
     string[] public history;
-     address public owner=address(0);
+    address public owner=address(0);
     constructor(){
         owner=msg.sender;
     }
+    /*///////////////////////////////////////////
+    //////Signup/////////////////////////////////
+    User can join the chain using name,location,
+    stage in which they are participating
+    ////////////////////////////////////////////*/
     function signup(string memory nme,string memory loc,string memory stg) public {
         name=nme;
         location=loc;
         stage=stg;
     }
+    /*///////////////////////////////////////////
+    //////getUserData()/////////////////////////////////
+    Returns details of a specific User
+    ////////////////////////////////////////////*/
     function getUserData() public view returns (string memory ,string memory ,string memory ){
         return (name,location,stage);
     }
 }
+
+
+ /*///////////////////////////////////////////
+//////Contract 2 - StepNode/////////////////////////////////
+Each step in the process 
+////////////////////////////////////////////*/
 contract StepNode{
+    //Step details
     bool public isLastStep;
     bool public isFirstStep;
     bool public isProcessedStep=false;
@@ -36,13 +58,25 @@ contract StepNode{
         owner=msg.sender;
         time=block.timestamp;
     }
+/*///////////////////////////////////////////
+updateNext() - Used to set previous address of a block.
+This is done after creating a new step,new step
+address is passed to the function
+////////////////////////////////////////////*/
     function updateNext(address nextAddress) public {
         next=nextAddress;
        
     }
+/*///////////////////////////////////////////
+markprocessed() - Mark a block as processed means
+no further processing is possible
+////////////////////////////////////////////*/
     function markprocessed()public{
          isProcessedStep=true;
     }
+/*///////////////////////////////////////////
+Store() -Store details related to the step
+////////////////////////////////////////////*/
     function store(bool lastStep,bool firstStep,address prevAd,uint256 index,string memory stepData,string memory locationData,string memory descriptionData) public {
         isLastStep=lastStep;
         isFirstStep=firstStep;
@@ -52,30 +86,77 @@ contract StepNode{
         step=stepData;
         description=descriptionData;
     }
+/*///////////////////////////////////////////
+isLastStepNode() -Checks whether a given node
+is last node or not?
+////////////////////////////////////////////*/
     function isLastStepNode()public  view returns (bool){
         return isLastStep;
     }
+/*///////////////////////////////////////////
+isLastStepNode() -Checks whether a given node
+is first node or not?
+////////////////////////////////////////////*/
     function isFirstStepNode()public  view returns (bool){
         return isFirstStep;
     }
+/*///////////////////////////////////////////
+getPrevAddress() -Returns address of previous 
+block
+////////////////////////////////////////////*/
     function getPrevAddress()public  view returns (address){
         return prev;
     }
+/*///////////////////////////////////////////
+getNextAddress() -Returns address of next 
+block
+////////////////////////////////////////////*/
+    function getNextAddress()public  view returns (address){
+        return next;
+    }
+/*///////////////////////////////////////////
+isProcessed() -Returns a particular block is 
+processed or not
+////////////////////////////////////////////*/
     function isProcessed() public  view returns (bool){
          return isProcessedStep;
     }
+/*///////////////////////////////////////////
+setNextAddress() -set next address of a block.Done after 
+a new step is created
+////////////////////////////////////////////*/
     function setNextAddress(address newAddress) public {
         next=newAddress;
     }
+/*///////////////////////////////////////////
+purchaseProduct() -Purchase a product.After marking a product
+as purchased it's not possible to add a next step
+////////////////////////////////////////////*/
     function purchaseProduct() public {
         isLastStep=true;
     }
-    function isValidNode() public view returns (bool){
-        if(!isFirstStep && address(0)==next) {
+/*///////////////////////////////////////////
+isValidNode() - How?
+X-->Y-->Z To create a node Z we have to verify whether
+previous node Y is valid or not.We verify it by
+checking if next address of X is equal to address of Y.
+(If Y is a firstNode no need to check);
+////////////////////////////////////////////*/
+    function isValidNode(address nodeAddress) public view returns (bool){
+        
+        if(!isFirstStep) {
+            StepNode previousStep=StepNode(prev);
+            address previous=previousStep.getNextAddress();
+            if(previous==nodeAddress){
+                return true;
+            }
             return false;
         }
         return  true;
     }
+/*///////////////////////////////////////////
+nodeData() - Returns all data related to a step/stage
+////////////////////////////////////////////*/
     function nodeData() public view returns(bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
         return (isLastStep,isFirstStep,isProcessedStep,next,prev,owner,step,location,description,time);
     }
@@ -113,7 +194,7 @@ contract SupplyChain{
                             revert("Already Purchased");
                         }else if(node.isProcessed()){
                             revert("Already Processed");
-                        }else if(!node.isValidNode()){
+                        }else if(!node.isValidNode(prevAddress)){
                             revert("Invalid node");
                         }else{
                             StepNode newStep=new StepNode();
