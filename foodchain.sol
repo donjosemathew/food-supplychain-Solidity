@@ -14,6 +14,8 @@ contract User{
     //array to hold all smart contracts deployed by a specific User
     string[] public history;
     address public owner=address(0);
+    ////events
+    event userCreated(string name,address addre);
     constructor(){
         owner=msg.sender;
     }
@@ -26,6 +28,7 @@ contract User{
         name=nme;
         location=loc;
         stage=stg;
+        emit userCreated(nme, owner);
     }
     /*///////////////////////////////////////////
     //////getUserData()/////////////////////////////////
@@ -46,6 +49,7 @@ contract StepNode{
     bool public isLastStep;
     bool public isFirstStep;
     bool public isProcessedStep=false;
+    address public stepAddress;
     address public next=address(0);
     address public prev=address(0);
     address public owner;
@@ -54,9 +58,13 @@ contract StepNode{
     string public location;
     string public description;
     uint time;
+    //////events
+
+    event eventPrintStepData(bool isLastStep,bool isFirstStep,bool isProcessedStep,address next,address prev,address owner,string step,string location,string description,uint time);
     constructor(){
         owner=msg.sender;
         time=block.timestamp;
+        stepAddress=address(this);
     }
 /*///////////////////////////////////////////
 updateNext() - Used to set previous address of a block.
@@ -73,6 +81,7 @@ no further processing is possible
 ////////////////////////////////////////////*/
     function markprocessed()public{
          isProcessedStep=true;
+        
     }
 /*///////////////////////////////////////////
 Store() -Store details related to the step
@@ -147,8 +156,7 @@ checking if next address of X is equal to address of Y.
         if(!isFirstStep) {
             StepNode previousStep=StepNode(prev);
             address previous=previousStep.getNextAddress();
-            address nodeAddress=address(this);
-            if(previous==nodeAddress){
+            if(previous==stepAddress){
                 return true;
             }
             return false;
@@ -158,8 +166,15 @@ checking if next address of X is equal to address of Y.
 /*///////////////////////////////////////////
 nodeData() - Returns all data related to a step/stage
 ////////////////////////////////////////////*/
-    function nodeData() public view returns(bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
+    function nodeData() public  returns(bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
+        emit eventPrintStepData(isLastStep,isFirstStep,isProcessedStep,next,prev,owner,step,location,description,time);
         return (isLastStep,isFirstStep,isProcessedStep,next,prev,owner,step,location,description,time);
+    }
+//////////////////////////////////////////////
+
+/////////////////////
+    function nodeAddress() public view returns (address){
+        return stepAddress;
     }
 
 }
@@ -176,7 +191,13 @@ contract SupplyChain{
     StepNode[] public stepNodeArray;//Holds all step contracts
     mapping (address=>uint32[]) public addressToArrayindex;
     mapping (address=>User)public userMapping;
+//////////
+/////Events
+
+    event eventLogMessage(string mssg);//log some text 
+    event eventStepCreated(address addr,string mssg);//print log when a new step is created
     event emitError(string reason,string text);
+
 /*///////////////////////////////////////////
 createAFirstStep() - Create first step of a product
 Only logged in users can create a step
@@ -188,6 +209,7 @@ Only logged in users can create a step
                 stepNodeArray.push(firstStep);
                 uint256 len=getArraylength();
                 firstStep.store(false, true, address(0),len,stepData,locationData,descriptionData);
+                emit eventStepCreated(firstStep.nodeAddress(),"A node created,Node is a first stage");
         }catch Error(string memory reason){
             emit emitError(reason,"Not Logged in");
         }
@@ -205,10 +227,13 @@ createAStep() - Returns all data related to a step/stage
         try user.getUserData(){
                 try node.isLastStepNode(){
                         if(node.isLastStepNode()){
+                            emit emitError("PURCHASED","already purchased product");
                             revert("Already Purchased");
                         }else if(node.isProcessed()){
+                            emit emitError("PROCESSES","already Processed product");
                             revert("Already Processed");
                         }else if(!node.isValidNode()){
+                            emit emitError("INVALID_NODE","Invalid node");
                             revert("Invalid node");
                         }else{
                             StepNode newStep=new StepNode();
@@ -216,6 +241,7 @@ createAStep() - Returns all data related to a step/stage
                             newStep.store(false, false, prevAddress,len,stepData,locationData,descriptionData);
                             stepNodeArray.push(newStep);
                             node.markprocessed();
+                            emit eventStepCreated(newStep.nodeAddress(),"A node created,Node is not a first stage");
                         }
                         
                         
@@ -235,10 +261,12 @@ createAStep() - Returns all data related to a step/stage
     function setNextAddressNode(address newAdress,address prevAddress) public {
                 StepNode prevStep=StepNode(prevAddress);
                 prevStep.setNextAddress(newAdress);
+                emit eventLogMessage("Address Connected");
     }
     function purchaseProduct(address productAddress) public {
                 StepNode step=StepNode(productAddress);
                 step.purchaseProduct();
+                emit eventLogMessage("product purchased");
     }
     function getArraylength() public view returns (uint256) {
         return stepNodeArray.length;
@@ -254,8 +282,9 @@ createAStep() - Returns all data related to a step/stage
         StepNode node=StepNode(prevAddress);
         return address(0)==node.getPrevAddress();
     }
-    function getStepDetails(address indexAddress)public view returns (bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
+    function getStepDetails(address indexAddress)public  returns (bool,bool,bool,address,address,address,string memory,string memory,string memory,uint){
         StepNode node=StepNode(indexAddress);
+        
         return  node.nodeData();
     }
     function userSignup(string memory nme,string memory loc,string memory stg)public {
