@@ -241,6 +241,7 @@ createAStep() - Returns all data related to a step/stage
                             newStep.store(false, false, prevAddress,len,stepData,locationData,descriptionData);
                             stepNodeArray.push(newStep);
                             node.markprocessed();
+                            setNextAddressNode(newStep.nodeAddress(),newStep.getPrevAddress());
                             emit eventStepCreated(newStep.nodeAddress(),"A node created,Node is not a first stage");
                         }
                         
