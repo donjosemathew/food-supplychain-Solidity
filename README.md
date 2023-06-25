@@ -1,1 +1,3 @@
-﻿# AgriChain
+<img src="/logo.svg"/>
+
+ # AgriChain
